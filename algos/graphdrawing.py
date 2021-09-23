@@ -17,6 +17,7 @@ def draw(V, adj_V, color='b'):
       xs = [v[0], w[0]]
       ys = [v[1], w[1]]
       plt.plot(xs, ys, '{}-'.format(color))
+  plt.show()
   
 def bfs(v, adj_V):
   vis = [v]
@@ -35,16 +36,16 @@ def gen_graph():
   adj_V = {}
   # create random adjacency list
   for i in range(len(V)):
-  	adj = np.random.randint(0, len(V) - 1, np.random.randint(0, 5))
-  	adj = adj[adj != i]
-  	adj = list(set(adj))
-  	adj_V[i] = adj
-  	
+    adj = np.random.randint(0, len(V) - 1, np.random.randint(0, 5))
+    adj = adj[adj != i]
+    adj = list(set(adj))
+    adj_V[i] = adj
+
   # make adjacency list symmetric
   for i in range(len(V)):
-  	for nbr in adj_V[i]:
-  		if i not in adj_V[nbr]:
-  			adj_V[nbr].extend([i])
+    for nbr in adj_V[i]:
+      if i not in adj_V[nbr]:
+        adj_V[nbr].extend([i])
   return V, adj_V
 
 def d2(p, q):

@@ -27,5 +27,4 @@ if __name__ == "__main__":
   gd.draw(V, adj_V)
   W = birch(V, adj_V)
   gd.draw(W, adj_V)
-  plt.show()
 
