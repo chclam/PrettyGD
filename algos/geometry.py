@@ -64,7 +64,7 @@ def bfs(v, adj_V):
   return vis
 
 def get_angular_res(V, adj_V):
-  # maybe calculate the mean over it 
+  # returns average angle between incident edges
   ret = []
   for i in range(len(V)):
     if len(adj_V[i]) < 2:
@@ -80,16 +80,23 @@ def get_angular_res(V, adj_V):
   ret = sum(ret) / len(ret)
   return ret
 
-def get_intersects(V, adj_V):
-  # naive O(n^2) check on intersection
-  ints = []
-  adj_ints = {}
+def get_edges(V, adj_V):
+  '''
+  Given an adjacency list adj_V and V,
+  return the list of edges in V.
+  '''
   E = []
   for v in range(len(V)):
     for w in adj_V[v]:
       if [w, v] in E:
         continue
       E.append([v, w])
+  return E 
+
+def get_intersects(V, E):
+  # naive O(n^2) check on intersection
+  ints = []
+  adj_ints = {}
   EE = combinations(E, 2)
   for e1_idx, e2_idx in EE:
     if len(set(e1_idx + e2_idx)) < 4:
@@ -101,9 +108,10 @@ def get_intersects(V, adj_V):
     p = e1.intersection(e2)
     # format point coordinates
     p = p.xy
+    adj_ints[len(ints)] = [e1_idx, e2_idx] # adjacent vertex indices to p
     ints.append(p)
-    adj_ints[len(ints)] = e1_idx + e2_idx # adjacent vertex indices to p
   ints = np.array(ints)
   ints = np.squeeze(ints)
   return ints, adj_ints 
+
 
