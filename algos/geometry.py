@@ -80,38 +80,38 @@ def get_angular_res(V, adj_V):
   ret = sum(ret) / len(ret)
   return ret
 
-def get_edges(V, adj_V):
+def get_intersects(V, adj_V):
   '''
-  Given an adjacency list adj_V and V,
-  return the list of edges in V.
+  Returns vertex indices of intersecting edges and
+  their intersection point.
+  Naive O(n^2) check on intersection,
+  TODO: change to line sweep when necessary.
   '''
+  # get list with vertex pairs forming edges
   E = []
   for v in range(len(V)):
     for w in adj_V[v]:
       if [w, v] in E:
         continue
       E.append([v, w])
-  return E 
-
-def get_intersects(V, E):
-  # naive O(n^2) check on intersection
-  ints = []
-  adj_ints = {}
+  # calculate intersections
   EE = combinations(E, 2)
-  for e1_idx, e2_idx in EE:
-    if len(set(e1_idx + e2_idx)) < 4:
+  ret = []
+  for [p, q], [r, s] in EE:
+    if len(set([p, q, r, s])) < 4:
       continue # get rid of incident edges
-    e1 = LineString([V[e1_idx[0]], V[e1_idx[1]]])
-    e2 = LineString([V[e2_idx[0]], V[e2_idx[1]]])
+    e1 = LineString([V[p], V[q]])
+    e2 = LineString([V[r], V[s]])
     if not e1.intersects(e2):
       continue 
-    p = e1.intersection(e2)
-    # format point coordinates
-    p = p.xy
-    adj_ints[len(ints)] = [e1_idx, e2_idx] # adjacent vertex indices to p
-    ints.append(p)
-  ints = np.array(ints)
-  ints = np.squeeze(ints)
-  return ints, adj_ints 
-
-
+    int_pnt = e1.intersection(e2).xy
+    int_pnt = np.array(int_pnt)
+    int_pnt = np.squeeze(int_pnt)
+    intersect = {
+      'e1': [p, q],
+      'e2': [r, s],
+      'intersection': int_pnt
+    }
+    ret.append(intersect)
+  return ret
+  

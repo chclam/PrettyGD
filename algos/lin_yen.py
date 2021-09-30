@@ -21,52 +21,57 @@ def get_spring_force(v, u, C1, C2):
   ret *= (uv / geo.card(uv))
   return ret
 
-def cross_repulsion(V, E, C, adj_C, N=5, C0=1, C1=1, C2=1):
+def cross_repulsion(V, adj_V, N=5, C0=1, C1=1, C2=1):
   W = V.copy()
   for a in range(N):
+    # calculate attractive forces to original positioning
     F = np.subtract(V, W)
     F = np.multiply(C0, F)
-    for i, c in enumerate(C):
-      p = W[adj_C[i][0][0]]
-      q = W[adj_C[i][0][1]]
-      r = W[adj_C[i][1][0]]
-      s = W[adj_C[i][1][1]]
-      e = r # pointer to the vertex that forms the smallest angle with pc
+    ints = geo.get_intersects(W, adj_V)
+    for ist in ints:
+      p = W[ist['e1'][0]]
+      q = W[ist['e1'][1]]
+      r = W[ist['e2'][0]]
+      s = W[ist['e2'][1]]
+      c = ist['intersection']
+
+      is_pr = True # smallest angle is formed from vectors p and r
       ang = geo.get_angle(c, p, r)
       if ang > (pi / 2): 
+        is_pr = False # smallest angle is formed from p and s
         ang = geo.get_angle(c, p, s)
-        e = s # smallest angle if formed by edge sc
       f_ps = C1 * cos(ang)
 
       pc = np.subtract(p, c)
       pc_u = np.divide(pc, norm(pc))
-      ec = np.subtract(e, c)
+      if is_pr:
+        ec = np.subtract(r, c)
+      else:
+        ec = np.subtract(s, c)
       ec_u = np.divide(ec, norm(ec))
-      
       u_m = np.add(pc_u, ec_u)
       u_m = np.divide(u_m, norm(u_m))
-      
-      pc_norm = np.dot([[0, -1], [1, 0]], np.expand_dims(pc_u, 1))
-      ec_norm = np.dot([[0, 1], [-1, 0]], np.expand_dims(ec_u, 1))
-      
+
+      # expand_dims and squeeze for proper vector representation
+      pc_norm = np.dot([[0, -1], [1, 0]], np.expand_dims(pc_u, 1)) # turn 90 deg
+      ec_norm = np.dot([[0, 1], [-1, 0]], np.expand_dims(ec_u, 1)) # turn -90 deg
+      pc_norm = np.squeeze(pc_norm) 
+      ec_norm = np.squeeze(ec_norm) 
+
       if not np.dot(u_m[0], pc_u[1]) - np.dot(pc_u[0], u_m[1]) > 0: # if pc is not left
         pc_norm = np.multiply(-1, pc_norm) # turn pc_norm the other way
         ec_norm = np.multiply(-1, ec_norm) 
 
-      pc_norm = np.squeeze(pc_norm) # get rid of these too
-      ec_norm = np.squeeze(ec_norm)
-      W[adj_C[i][0][0]] += f_ps * pc_norm
-      W[adj_C[i][0][1]] -= f_ps * pc_norm
-      # fix this terrible code
-      if e[0] == r[0] and e[1] == r[1]:
-        W[adj_C[i][1][0]] += f_ps * ec_norm
-        W[adj_C[i][1][1]] -= f_ps * ec_norm
-      else:
-        W[adj_C[i][1][1]] += f_ps * ec_norm
-        W[adj_C[i][1][0]] -= f_ps * ec_norm
+      W[ist['e1'][0]] += np.multiply(f_ps, pc_norm)
+      W[ist['e1'][1]] -= np.multiply(f_ps, pc_norm)
+      if not is_pr:
+        ec_norm = np.multiply(-1, ec_norm)
+      W[ist['e2'][0]] += np.multiply(f_ps, ec_norm)
+      W[ist['e2'][1]] -= np.multiply(f_ps, ec_norm)
 
   for i in range(len(W)):
     W[i] += C2 * F[i]
+
   return W
     
 def ee_repulsion(V, adj_V, cross=False):
