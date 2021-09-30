@@ -18,13 +18,13 @@ def draw(V, adj_V, color='b'):
       ys = [v[1], w[1]]
       plt.plot(xs, ys, '{}-'.format(color))
   
-def gen_graph():
+def gen_graph(num_verts=10, max_nbrs=5):
   # returns vertices with corresponding adjacency list 
-  V = np.random.rand(10, 2)
+  V = np.random.rand(num_verts, 2)
   adj_V = {}
   # create random adjacency list
   for i in range(len(V)):
-    adj = np.random.randint(0, len(V) - 1, np.random.randint(0, 5))
+    adj = np.random.randint(0, len(V) - 1, np.random.randint(0, min(len(V) - 1, max_nbrs)))
     adj = adj[adj != i]
     adj = list(set(adj))
     adj_V[i] = adj

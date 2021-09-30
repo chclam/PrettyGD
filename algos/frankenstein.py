@@ -39,18 +39,13 @@ def ev_repulsion(V, adj_V, ):
         F[i] += bs_n
   return W
         
-def frankenstein(V, adj_V, N=5, C0=1, C6=0.05):
+def frankenstein(V, adj_V, N=5, C0=1, C1=0.05):
   '''
   Combine edge repulsion by Lin, Yen (2012) with
   attraction force to original position by Birchfield.
   '''
   # set C6 to higher value for more freedom of placement
   W = V.copy()
-  C1 = 1 
-  C2 = 1
-  C3 = 1
-  C4 = 1
-  C5 = 1
   for a in range(N):
     F = np.subtract(V, W)
     F = np.multiply(C0, F)
@@ -69,7 +64,9 @@ def frankenstein(V, adj_V, N=5, C0=1, C6=0.05):
         vw = np.subtract(w, v)
         u_m = vu / geo.card(vu) + vw / geo.card(vw) 
         u_m = u_m / geo.card(u_m)
+        u_f = np.expand_dims(u_m, 1)
         u_f = np.dot([[0, 1], [-1, 0]], u_m)
+        u_f = np.squeeze(u_f)
         vu_left = True if ((u_m[0] * vu_u[1]) - (vu_u[0] * u_m[1])) > 0 else False
         if vu_left:
         	# change repulsion direction outwards from vu, vw
@@ -77,7 +74,7 @@ def frankenstein(V, adj_V, N=5, C0=1, C6=0.05):
         F[nbr_order[j]] += u_f
         F[nbr_order[k]] -= u_f
     for i in range(len(V)):
-      W[i] += C6 * F[i]
+      W[i] += C1 * F[i]
   return W
     
 if __name__ == "__main__":

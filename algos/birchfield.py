@@ -19,9 +19,8 @@ def force_directed(V, adj_V, N=5, C1=1, C2=1, C3=1):
         F[i][0] += F_mag * np.cos(F_ang)
         F[i][1] += F_mag * np.sin(F_ang)
     # apply force to new positions
-    for i in range(len(V)):
-      W[i][0] += C3 * F[i][0]
-      W[i][1] += C3 * F[i][1]
+    F = np.multiply(C3, F)
+    W = np.add(W, F)
   return W
   
 if __name__ == "__main__":

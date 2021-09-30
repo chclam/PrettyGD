@@ -2,6 +2,7 @@ import numpy as np
 from math import sqrt, pi
 from itertools import combinations
 from shapely.geometry import LineString
+from numpy.linalg import norm
 
 def d1(p, q):
   ret = abs(p[0] - q[0])
@@ -14,19 +15,13 @@ def d2(p, q):
   ret = sqrt(ret)
   return ret
 
-def card(v):
-  ret = np.power(v, 2)
-  ret = np.sum(ret)
-  ret = sqrt(ret)
-  return ret
-
 def get_angle(v, w, u):
   '''
   Gets angle between vectors vu and vw.
   '''
   vu = np.subtract(u, v)
   vw = np.subtract(w, v)
-  ret = np.arccos(np.dot(vu, vw) / (card(vu) * card(vw)))
+  ret = np.arccos(np.dot(vu, vw) / (norm(vu) * norm(vw)))
   return ret
 
 def get_nbr_order(v, V, adj_v):
@@ -41,7 +36,7 @@ def get_nbr_order(v, V, adj_v):
     w = V[adj_v[i]]
     vw = np.subtract(w, v)
     # get angle between edges vu, vw
-    ang = np.arccos(np.dot(vu, vw) / (card(vu) * card(vw)))
+    ang = np.arccos(np.dot(vu, vw) / (norm(vu) * norm(vw)))
     if (vw[0] * vu[1] - vu[0] * vw[1]) <= 0:
       # if vu is the right vector of the angle,
       # calculate the outer angle
