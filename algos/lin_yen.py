@@ -23,10 +23,11 @@ def get_spring_force(v, u, C1, C2):
 
 def cross_repulsion(V, adj_V, N=5, C0=1, C1=1, C2=1):
   W = V.copy()
-  for a in range(N):
+  for i in range(N):
     # calculate attractive forces to original positioning
     F = np.subtract(V, W)
     F = np.multiply(C0, F)
+    # re-calculate the intersection points per iteration
     ints = geo.get_intersects(W, adj_V)
     for ist in ints:
       p = W[ist['e1'][0]]
@@ -69,9 +70,8 @@ def cross_repulsion(V, adj_V, N=5, C0=1, C1=1, C2=1):
       W[ist['e2'][0]] += np.multiply(f_ps, ec_norm)
       W[ist['e2'][1]] -= np.multiply(f_ps, ec_norm)
 
-  for i in range(len(W)):
-    W[i] += C2 * F[i]
-
+  F = np.multiply(C2, F)
+  W = np.add(W, F)
   return W
     
 def ee_repulsion(V, adj_V, cross=False):
