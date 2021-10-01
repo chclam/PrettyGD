@@ -75,6 +75,13 @@ def get_angular_res(V, adj_V):
   ret = sum(ret) / len(ret)
   return ret
 
+def get_displacement(V, W):
+  # returns the **squared** euclidean distance
+  ret = np.subtract(V, W)
+  ret = np.power(ret, 2)
+  ret = np.sum(ret, axis=1)
+  return ret
+
 def get_intersects(V, adj_V):
   '''
   Returns vertex indices of intersecting edges and
