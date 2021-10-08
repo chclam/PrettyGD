@@ -5,7 +5,7 @@ import pandas as pd
 
 def get_ww():
   # really ugly code
-  with open('algos/datasets/odf_data/NL_muni_point.geojson') as geod:
+  with open('datasets/odf_data/NL_muni_point.geojson') as geod:
     geod = json.load(geod)
     geod = geod['features']
     gem_to_ind = {}
@@ -18,7 +18,7 @@ def get_ww():
     adj_gem = {}
     for i in range(len(coords)):
       adj_gem[i] = []
-    comd = pd.read_csv('algos/datasets/odf_data/NL_commuting.csv')
+    comd = pd.read_csv('datasets/odf_data/NL_commuting.csv')
     for i, gem in comd.iterrows():
       if gem['value'] < 500: 
         continue
@@ -35,3 +35,37 @@ def get_ww():
           adj_gem[gem2].append(gem1)
     
   return coords, adj_gem
+
+
+if __name__ == "__main__":
+  import graphdrawing as gd
+  import lin_yen as ly
+  import matplotlib.pyplot as plt
+  import geometry as geo
+  import json
+  import os
+  
+  GEM_FILE = "./gemeente_data.json"
+
+  if GEM_FILE not in os.listdir():
+    coords, adj_gem = get_ww()
+    with open(GEM_FILE, 'w') as out:
+      print('h')
+      X = {
+        'gemeentes': coords,
+        'adj_list': adj_gem
+      }
+      json.dump(X, out)
+
+  with open(GEM_FILE) as gem_data:
+    gem_data = json.load(gem_data)
+    coords = gem_data['gemeentes']
+    adj_gem = gem_data['adj_list']
+      
+    W = ly.bigangle(coords, adj_gem, N=5, C0=1, C1=1, C2=1, C3=1, F2V=True)
+    gd.draw(coords, adj_gem)
+    plt.show()
+    disps = geo.get_displacement(coords, W)
+    plt.scatter(x=W[:,0], y=W[:,1], c=disps, s=2000, cmap='YlOrRd')
+    gd.draw(W, adj_gem)
+    plt.show()

@@ -1,5 +1,5 @@
-from . import geometry as geo
-from . import graphdrawing as gd
+import geometry as geo
+import graphdrawing as gd
 from math import cos, pi
 import numpy as np
 import matplotlib.pyplot as plt
@@ -112,7 +112,7 @@ def cross_repulsion(V, adj_V, N=5, C0=1, C1=1, C2=1):
     W = np.add(W, F)
   return W
 
-def bigangle(V, adj_V, N=5, C0=1, C1=1, C2=1, C3=1, F2V=True):
+def bigangle(V, adj_V, N=5, C0=1, C1=1, C2=1, C3=1, F2V=True, reg_bounds=None):
   W = V.copy()
   for i in range(N):
     # calculate attractive forces to original positioning
@@ -205,7 +205,33 @@ def bigangle(V, adj_V, N=5, C0=1, C1=1, C2=1, C3=1, F2V=True):
 
     F = np.multiply(C3, F)
     W = np.add(W, F)
+    if reg_bounds is not None:
+      for i, w in enumerate(W):
+        if i not in reg_bounds:
+          continue
+        bb = get_bbox(reg_bounds[i])
+        # to do: finish this 
+        
+      
+  exit()
   return W
+
+def get_bbox(P):
+  if len(P) == 0:
+    return False
+  P = np.array(P)
+  P = np.squeeze(P)
+  if P.ndim == 1:
+    return False
+    #P = np.array([np.array(p) for p in P])
+  print('\n')
+  print(P)
+  print(P.ndim)
+  min_x = np.min(P[:,0])
+  max_x = np.max(P[:,0])
+  min_y = np.min(P[:,1])
+  max_y = np.max(P[:,1])
+  return min_x, max_x, min_y, max_y
     
 def ee_repulsion(V, adj_V, N=5, C0=1, C1=1, F2V=True):
   W = V.copy()
