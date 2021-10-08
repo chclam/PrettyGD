@@ -4,6 +4,7 @@ from math import cos, pi
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.linalg import norm
+import torch
 
 def get_rep_force(v, u, w, C3, C4, C5):
   f_e = C3 * ((np.arctan(d2(v, u) / C4)) + (np.arctan(d2(v, w) / C4)))
@@ -113,9 +114,11 @@ def cross_repulsion(V, adj_V, N=5, C0=1, C1=1, C2=1):
   return W
 
 def bigangle(V, adj_V, N=5, C0=1, C1=1, C2=1, C3=1, F2V=True):
+  import torch
   W = V.copy()
   for i in range(N):
     # calculate attractive forces to original positioning
+    L_cross = []
     if F2V:
       F = np.subtract(V, W)
       F = np.multiply(C0, F)
@@ -126,7 +129,6 @@ def bigangle(V, adj_V, N=5, C0=1, C1=1, C2=1, C3=1, F2V=True):
     ints = geo.get_intersects(W, adj_V)
     for ist in ints:
       p = W[ist['e1'][0]]
-      q = W[ist['e1'][1]]
       r = W[ist['e2'][0]]
       s = W[ist['e2'][1]]
       c = ist['intersection']
@@ -136,8 +138,32 @@ def bigangle(V, adj_V, N=5, C0=1, C1=1, C2=1, C3=1, F2V=True):
       if ang > (pi / 2): 
         angle_pr = False # smallest angle is formed from p and s
         ang = geo.get_angle(c, p, s)
-      f_cos = C1 * cos(ang)
+      L_cross.append(ang)
 
+    import torch.nn as nn
+
+    L_cross = torch.tensor(L_cross, requires_grad=True)
+    tar = torch.ones(len(L_cross), 1)
+    tar *= (pi / 2)
+    opt = torch.optim.SGD([L_cross], lr=0.0001, momentum=0.9)
+    out = loss_angle(L_cross)
+    print(f'i = {i}', out)
+    out.backward()
+    opt.step()
+
+    for a, ist in enumerate(ints):
+      p = W[ist['e1'][0]]
+      q = W[ist['e1'][1]]
+      r = W[ist['e2'][0]]
+      s = W[ist['e2'][1]]
+      c = ist['intersection']
+
+      angle_pr = True # smallest angle is formed from vectors p and r
+      if geo.get_angle(c, p, r) > (pi / 2): 
+        angle_pr = False # smallest angle is formed from p and s
+
+      ang = L_cross[a]
+      f_cos = C1 * cos(ang)
       pc = np.subtract(p, c)
       pc_u = np.divide(pc, norm(pc))
       if angle_pr:
@@ -206,6 +232,17 @@ def bigangle(V, adj_V, N=5, C0=1, C1=1, C2=1, C3=1, F2V=True):
     F = np.multiply(C3, F)
     W = np.add(W, F)
   return W
+ 
+def loss_displacement(V, W):
+  ret = torch.subtract(W, V)
+  ret = torch.pow(ret, 2)
+  return ret
+
+def loss_angle(X):
+  ret = torch.cos(X)
+  ret = torch.pow(ret, 2)
+  ret = torch.sum(ret)
+  return ret
     
 def ee_repulsion(V, adj_V, N=5, C0=1, C1=1, F2V=True):
   W = V.copy()
