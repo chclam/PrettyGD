@@ -1,6 +1,5 @@
 import torch
-from torch.optim import SGD, Adam
-from torch.optim.lr_scheduler import ExponentialLR
+from torch.optim import SGD
 import torch.nn.functional as F
 from tqdm import trange 
 from math import pi
