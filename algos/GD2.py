@@ -50,22 +50,32 @@ def loss_displacement(W, V):
   ret = torch.sum(ret)
   return ret
 
-def get_angle(v, w, u):
-  '''
-  Gets angle between vectors vu and vw.
-  '''
-  vu = torch.subtract(u, v)
-  vw = torch.subtract(w, v)
-
-  t = torch.dot(vu, vw)
-  b = torch.multiply(torch.norm(vu), torch.norm(vw))
-
-  ret = torch.divide(t, b) 
-  ret = torch.arccos(ret)
+def loss_crossings(W, adj_V):
+  ints = geo.get_intersects(W, adj_V)
+  p_idx = []
+  q_idx = []
+  r_idx = []
+  s_idx = []
+  for it in ints:
+    p_idx.append(it['e1'][0])
+    q_idx.append(it['e1'][1])
+    r_idx.append(it['e2'][0])
+    s_idx.append(it['e2'][1])
+  # gather the vectorized vertex positions from indices
+  p = to_vert_vals(p_idx, W)
+  q = to_vert_vals(q_idx, W)
+  r = to_vert_vals(r_idx, W)
+  s = to_vert_vals(s_idx, W)
+  # calculate vectorized crossing angle
+  e1 = torch.subtract(p, q)
+  e2 = torch.subtract(r, s)
+  ret = F.cosine_similarity(e1, e2) 
+  ret = torch.pow(ret, 2)
+  ret = torch.sum(ret)
   return ret
 
 def loss_angular_res(W, adj_V):
-  # get indices for incident edges
+  # get indices for incident edges for vectorization
   sens = 1 # sensitivity of angular energy 
   i_idx = []
   j_idx = []
@@ -81,51 +91,24 @@ def loss_angular_res(W, adj_V):
       i_idx.append(i)
       j_idx.append(j)
       k_idx.append(k)
-      
+  # gather the vertex values for vectorized angle calculations
   i = to_vert_vals(i_idx, W)
   j = to_vert_vals(j_idx, W)
   k = to_vert_vals(k_idx, W)
-
+  # calculate angles between vectorized edges ji and ki
   ji = torch.subtract(j, i)
   ki = torch.subtract(k, i)
-
   # dot product manually for t since torch.dot() doesn't support on 2d tensors
   t = torch.multiply(ji, ki)
   t = torch.sum(t, axis=1)
   b = torch.multiply(torch.norm(ji, dim=1), torch.norm(ki, dim=1))
-
   ang = torch.divide(t, b)
   ang = torch.arccos(ang)
-  
+  # calculate loss of the calculated angles
   sens = torch.tensor(sens)
   sens = torch.multiply(torch.tensor(-1), sens)
-
   ret = torch.multiply(sens, ang)
   ret = torch.exp(ret)
-  ret = torch.sum(ret)
-  return ret
-  
-def loss_crossings(W, adj_V):
-  ints = geo.get_intersects(W, adj_V)
-  p_idx = []
-  q_idx = []
-  r_idx = []
-  s_idx = []
-  for it in ints:
-    p_idx.append(it['e1'][0])
-    q_idx.append(it['e1'][1])
-    r_idx.append(it['e2'][0])
-    s_idx.append(it['e2'][1])
-
-  p = to_vert_vals(p_idx, W)
-  q = to_vert_vals(q_idx, W)
-  r = to_vert_vals(r_idx, W)
-  s = to_vert_vals(s_idx, W)
-  
-  e1 = torch.subtract(p, q)
-  e2 = torch.subtract(r, s)
-  ret = F.cosine_similarity(e1, e2)
-  ret = torch.pow(ret, 2)
   ret = torch.sum(ret)
   return ret
 
