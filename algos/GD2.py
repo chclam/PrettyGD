@@ -1,26 +1,29 @@
 import torch
-from torch.optim import SGD
+from torch.optim import SGD, Adam
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import ExponentialLR
 from tqdm import trange 
 from math import pi
 import numpy as np
 
-from . import geometry as geo
+import geometry as geo
 
-def train(V, adj_V, N=5, w_disp=20, w_cross=0.1, w_ang_res=0.2):
+def train(V, adj_V, N=5, lr=0.001, w_disp=20, w_cross=0.1, w_ang_res=0.2):
   W = V.copy()
   W = torch.tensor(W, requires_grad=True)
   V = torch.tensor(V)
-  opt = SGD([W], lr=0.0001, momentum=0.9)
+  opt = Adam([W], lr=lr)
+  sch = ExponentialLR(opt, gamma=0.9)
   losses = []
   for i in (t:= trange(N)):
     opt.zero_grad()
     loss = loss_function(W, V, adj_V, w_disp, w_cross, w_ang_res)
     loss.backward()
     opt.step()
+    sch.step()
     loss = loss.item()
     losses.append(loss)
-    t.set_description(f"Loss: {loss:.2f}; Progress")
+    t.set_description(f"Loss: {loss:.6f}; Progress")
   return W, losses
 
 def loss_function(W, V, adj_V, w_disp, w_cross, w_ang_res):
@@ -29,29 +32,60 @@ def loss_function(W, V, adj_V, w_disp, w_cross, w_ang_res):
   w_cross = torch.tensor(w_cross)
   w_ang_res = torch.tensor(w_ang_res)
 
-  loss_disp = loss_displacement(W, V)
-  loss_disp = torch.multiply(loss_disp, w_disp)
+  if w_disp == 0:
+    loss_disp = torch.tensor(0)
+  else:
+    loss_disp = loss_displacement(W, V, adj_V)
+    loss_disp = torch.multiply(loss_disp, w_disp)
 
-  loss_cross = loss_crossings(W, adj_V)
-  loss_cross = torch.multiply(loss_cross, w_cross)
+  if w_cross == 0:
+    loss_cross = torch.tensor(0)
+  else:
+    loss_cross = loss_crossings(W, adj_V)
+    loss_cross = torch.multiply(loss_cross, w_cross)
 
-  loss_ang_res = loss_angular_res(W, adj_V)
-  loss_ang_res = torch.multiply(loss_ang_res, w_ang_res)
+  if w_ang_res == 0:
+    loss_ang_res = torch.tensor(0)
+  else:
+    loss_ang_res = loss_angular_res(W, adj_V)
+    loss_ang_res = torch.multiply(loss_ang_res, w_ang_res)
 
   ret = torch.add(loss_disp, loss_cross)
   ret = torch.add(ret, loss_ang_res)
   return ret
   
-def loss_displacement(W, V):
+def loss_displacement(W, V, adj_V):
+  # calculate the average edge length stochastically
+  samp_inds = np.random.randint(0, len(adj_V), size=max(1, len(adj_V) // 10))
+  edge_samp_i = []
+  edge_samp_j = []
+  for i in samp_inds:
+    if len(adj_V[i]) == 0:
+      continue
+    nbr_samp = np.random.randint(0, len(adj_V[i]), max(1, len(adj_V[i]) // 5))
+    for j in nbr_samp:
+      edge_samp_i.append(i)
+      edge_samp_j.append(adj_V[i][j])
+
+  p = to_vert_vals(edge_samp_i, W)
+  q = to_vert_vals(edge_samp_j, W)
+  
+  # average edge length as normalizer
+  norm = torch.subtract(p, q)
+  norm = torch.pow(norm, 2)
+  norm = torch.sum(norm, axis=1)
+  norm = torch.sqrt(norm)
+  norm = norm.mean()
   # squared euclidean distance
   ret = torch.subtract(W, V)
   ret = torch.pow(ret, 2)
   ret = torch.sum(ret, axis=1)
   ret = torch.sum(ret)
+  ret = torch.divide(ret, norm)
   return ret
 
 def loss_crossings(W, adj_V):
-  ints = geo.get_intersects(W, adj_V)
+  ints = get_intersects(W, adj_V)
   p_idx = []
   q_idx = []
   r_idx = []
@@ -73,6 +107,14 @@ def loss_crossings(W, adj_V):
   ret = torch.pow(ret, 2)
   ret = torch.sum(ret)
   return ret
+
+def get_intersects(W, adj_V):
+  W = W.detach().numpy()
+  y_sorted = np.argsort(W[:,1])
+  queue = BinaryTree(
+  for n_idx in y_sorted:
+    
+  pass
 
 def loss_angular_res(W, adj_V):
   # get indices for incident edges for vectorization

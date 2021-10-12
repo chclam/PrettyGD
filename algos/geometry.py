@@ -90,6 +90,7 @@ def get_intersects(V, adj_V):
   TODO: change to line sweep when necessary.
   '''
   # get list with vertex pairs forming edges
+  print(0)
   E = []
   for v in range(len(V)):
     for w in adj_V[v]:
@@ -98,6 +99,7 @@ def get_intersects(V, adj_V):
       E.append([v, w])
   # calculate intersections
   EE = combinations(E, 2)
+  print(1)
   ret = []
   for [p, q], [r, s] in EE:
     if len(set([p, q, r, s])) < 4:
@@ -115,5 +117,6 @@ def get_intersects(V, adj_V):
       'intersection': int_pnt
     }
     ret.append(intersect)
+  print(2)
   return ret
   
