@@ -80,43 +80,6 @@ def get_displacement(V, W):
   ret = np.subtract(V, W)
   ret = np.power(ret, 2)
   ret = np.sum(ret, axis=1)
-  return ret
-
-def get_intersects(V, adj_V):
-  '''
-  Returns vertex indices of intersecting edges and
-  their intersection point.
-  Naive O(n^2) check on intersection,
-  TODO: change to line sweep when necessary.
-  '''
-  # get list with vertex pairs forming edges
-  print(0)
-  E = []
-  for v in range(len(V)):
-    for w in adj_V[v]:
-      if [w, v] in E:
-        continue
-      E.append([v, w])
-  # calculate intersections
-  EE = combinations(E, 2)
-  print(1)
-  ret = []
-  for [p, q], [r, s] in EE:
-    if len(set([p, q, r, s])) < 4:
-      continue # get rid of incident edges
-    e1 = LineString([V[p], V[q]])
-    e2 = LineString([V[r], V[s]])
-    if not e1.intersects(e2):
-      continue 
-    int_pnt = e1.intersection(e2).xy
-    int_pnt = np.array(int_pnt)
-    int_pnt = np.squeeze(int_pnt)
-    intersect = {
-      'e1': [p, q],
-      'e2': [r, s],
-      'intersection': int_pnt
-    }
-    ret.append(intersect)
-  print(2)
+  ret = np.sqrt(ret)
   return ret
   

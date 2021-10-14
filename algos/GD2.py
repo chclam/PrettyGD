@@ -5,8 +5,11 @@ from torch.optim.lr_scheduler import ExponentialLR
 from tqdm import trange 
 from math import pi
 import numpy as np
+from sortedcontainers import SortedList, SortedKeyList
+from shapely.geometry import LineString
+from sympy.geometry import Segment
+from itertools import combinations
 
-import geometry as geo
 
 def train(V, adj_V, N=5, lr=0.001, w_disp=20, w_cross=0.1, w_ang_res=0.2):
   W = V.copy()
@@ -85,7 +88,7 @@ def loss_displacement(W, V, adj_V):
   return ret
 
 def loss_crossings(W, adj_V):
-  ints = get_intersects(W, adj_V)
+  ints = get_intersects(W.detach().numpy(), adj_V)
   p_idx = []
   q_idx = []
   r_idx = []
@@ -108,14 +111,33 @@ def loss_crossings(W, adj_V):
   ret = torch.sum(ret)
   return ret
 
-def get_intersects(W, adj_V):
-  W = W.detach().numpy()
-  y_sorted = np.argsort(W[:,1])
-  queue = BinaryTree(
-  for n_idx in y_sorted:
-    
-  pass
+def is_lower_endpoint(p_idx, adj_V, status):
+  for p_nbr in adj_V[p_idx]:
+    if p_nbr not in status[:,0]:
+      return False
+  return True 
+  
+def get_edgeset(W, adj_V):
+  p_inds = []
+  q_inds = []
+  for i, p in enumerate(W):
+    for j in adj_V[i]:
+      q = W[j]
+      if not (i in q_inds or j in p_inds):
+        p_inds.append(i)
+        q_inds.append(j)
+  ps = np.take(W, p_inds, axis=0)
+  ps = np.expand_dims(ps, axis=1)
 
+  qs = np.take(W, q_inds, axis=0)
+  qs = np.expand_dims(qs, axis=1)
+
+  ret = np.append(ps, qs, axis=1)
+  # add extra column to keep track of upper endpoint
+  # 0 = upper endpoint first; 1 = lower endpoint first
+  ret = np.append(ret, np.zeros(shape=ps.shape), axis=1) 
+  return ret
+    
 def loss_angular_res(W, adj_V):
   # get indices for incident edges for vectorization
   sens = 1 # sensitivity of angular energy 
@@ -182,7 +204,43 @@ def get_nbr_order(v, V, adj_v):
       # calculate the outer angle
       ang = (2 * pi) - ang
     angs.append(ang)
-  ret = np.argsort(angs)
+  angs = torch.tensor(angs)
+  ret = torch.argsort(angs)
   ret = [adj_v[idx] for idx in ret]
+  return ret
+
+def get_intersects(V, adj_V):
+  '''
+  Returns vertex indices of intersecting edges and
+  their intersection point.
+  Naive O(n^2) check on intersection,
+  TODO: change to line sweep when necessary.
+  '''
+  # get list with vertex pairs forming edges
+  E = []
+  for v in range(len(V)):
+    for w in adj_V[v]:
+      if [w, v] in E:
+        continue
+      E.append([v, w])
+  # calculate intersections
+  EE = combinations(E, 2)
+  ret = []
+  for [p, q], [r, s] in EE:
+    if len(set([p, q, r, s])) < 4:
+      continue # get rid of incident edges
+    e1 = LineString([V[p], V[q]])
+    e2 = LineString([V[r], V[s]])
+    if not e1.intersects(e2):
+      continue 
+    int_pnt = e1.intersection(e2).xy
+    int_pnt = np.array(int_pnt)
+    int_pnt = np.squeeze(int_pnt)
+    intersect = {
+      'e1': [p, q],
+      'e2': [r, s],
+      'intersection': int_pnt
+    }
+    ret.append(intersect)
   return ret
 
