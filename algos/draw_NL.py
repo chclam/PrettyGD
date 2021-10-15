@@ -7,6 +7,7 @@ import json
 import numpy as np
 import geometry as geo
 
+
 def format_json_loads(X):
   coords = X['gemeentes']
   coords = np.array(coords)
@@ -16,12 +17,36 @@ def format_json_loads(X):
     adj_gem[int(k)] = adj_gem_raw[k]
   return coords, adj_gem
 
-def get_edgeset(W, adj_V):
+def get_edgeset(V, adj_V):
   ret = []
-  for i in range(len(W)):
+  for i in range(len(V)):
     for j in adj_V[i]:
       if (j, i) not in ret:
         ret.append((i, j))
+  return ret
+
+
+def draw_map(V, adj_V):
+  import plotly.express as px
+  import plotly.graph_objects as go
+  fig = px.scatter_mapbox(lat=V[:,0], lon=V[:,1], size=disps)
+  edge_inds = get_edgeset(V, adj_V)
+  edges = []
+  for i, j in edge_inds:
+    edges.extend([V[i], V[j], [None, None]])
+  edges = np.array(edges)
+  fig.add_trace(go.Scattermapbox(lat=edges[:,0], lon=edges[:,1], mode='lines', showlegend=True))
+  fig.update_layout(mapbox_style='open-street-map', mapbox_zoom=5)
+  fig.show()
+
+def to_lat_lon(X):
+  '''
+  Convert from rijkdriehoekscoordinaten (espg 28992) to lat lon (espg 4326).
+  '''
+  from pyproj import Transformer
+  trans = Transformer.from_crs(28992, 4326)
+  ret = trans.itransform(X)
+  ret = np.array([p for p in ret])
   return ret
 
 if __name__ == "__main__":
@@ -43,7 +68,12 @@ if __name__ == "__main__":
     W, losses = GD2.train(coords, adj_gem, N=num_iters, lr=600, w_disp=0.00001, w_cross=1, w_ang_res=1)
     W = W.detach().numpy()
     disps = geo.get_displacement(W, coords)
+
     gd.draw(W, adj_gem)
+    W = to_lat_lon(W)
+
+    draw_map(W, adj_gem)
+
     plt.scatter(x=W[:,0], y=W[:,1], c=disps, s=200, cmap='YlOrRd')
     plt.show()
 
@@ -51,6 +81,8 @@ if __name__ == "__main__":
     plt.title('Total Loss')
     plt.show()
 
-    plt.plot(disps, 'ro')
-    plt.title('Displacements')
+    disps = np.array(disps)
+    plt.hist(disps)
+    #plt.plot(disps, 'ro')
+    plt.title('Histogram of Displacements')
     plt.show()
