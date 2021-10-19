@@ -7,11 +7,11 @@ from math import pi
 import numpy as np
 from sortedcontainers import SortedList, SortedKeyList
 from shapely.geometry import LineString
-from sympy.geometry import Segment
-from itertools import combinations
+from itertools import product, combinations
 
+import geometry as geo
 
-def train(V, adj_V, N=5, lr=0.001, w_disp=20, w_cross=0.1, w_ang_res=0.2):
+def train(V, adj_V, N=5, lr=0.001, w_disp=20, w_cross=0.1, w_ang_res=0.2, w_gabriel=0.1):
   W = V.copy()
   W = torch.tensor(W, requires_grad=True)
   V = torch.tensor(V)
@@ -20,7 +20,7 @@ def train(V, adj_V, N=5, lr=0.001, w_disp=20, w_cross=0.1, w_ang_res=0.2):
   losses = []
   for i in (t:= trange(N)):
     opt.zero_grad()
-    loss = loss_function(W, V, adj_V, w_disp, w_cross, w_ang_res)
+    loss = loss_function(W, V, adj_V, w_disp, w_cross, w_ang_res, w_gabriel)
     loss.backward()
     opt.step()
     sch.step()
@@ -29,7 +29,7 @@ def train(V, adj_V, N=5, lr=0.001, w_disp=20, w_cross=0.1, w_ang_res=0.2):
     t.set_description(f"Loss: {loss:.6f}; Progress")
   return W, losses
 
-def loss_function(W, V, adj_V, w_disp, w_cross, w_ang_res):
+def loss_function(W, V, adj_V, w_disp, w_cross, w_ang_res, w_gabriel):
   # weights to tensor
   w_disp = torch.tensor(w_disp)
   w_cross = torch.tensor(w_cross)
@@ -53,11 +53,78 @@ def loss_function(W, V, adj_V, w_disp, w_cross, w_ang_res):
     loss_ang_res = loss_angular_res(W, adj_V)
     loss_ang_res = torch.multiply(loss_ang_res, w_ang_res)
 
+  if w_gabriel == 0:
+    loss_gabriel = torch.tensor(0)
+  else:
+    loss_gabriel = loss_angular_res(W, adj_V)
+    loss_gabriel = torch.multiply(loss_gabriel, w_gabriel)
+
   ret = torch.add(loss_disp, loss_cross)
   ret = torch.add(ret, loss_ang_res)
+  ret = torch.add(ret, loss_gabriel)
   return ret
   
+def loss_gabriel(W, adj_V):
+  edges = get_edgeset(W, adj_V)
+  edges = np.array(edges)
+
+  edge_inds = np.arange(0, len(edges))
+  W_inds = np.arange(0, len(W))
+  EW_inds = np.asarray(list(product(edge_inds, W_inds)))
+  IJ = np.take(edges, EW_inds[:,0], axis=0)
+  K = EW_inds[:,1]
+  # remove instances where i = k or j = k, i.e. where vert k == endpoints i or j 
+  same_ijk = [] 
+  same_ijk.extend(np.argwhere(np.subtract(IJ[:,0], K) == 0))
+  same_ijk.extend(np.argwhere(np.subtract(IJ[:,1], K) == 0))
+  IJ = np.delete(IJ, same_ijk, axis=0)
+  K = np.delete(K, same_ijk, axis=0)
+ 
+  X_i = to_vert_vals(IJ[:,0], W)
+  X_j = to_vert_vals(IJ[:,1], W)
+  X_k = to_vert_vals(K, W)
+  
+  r_ij = torch.subtract(X_i, X_j)
+  r_ij = torch.abs(r_ij)
+  r_ij = torch.divide(r_ij, 2)
+
+  c_ij = torch.add(X_i, X_j)
+  c_ij = torch.divide(c_ij, 2)
+
+  ret = torch.subtract(X_k, c_ij)
+  ret = torch.abs(ret)
+  ret = torch.subtract(r_ij, ret)
+  ret = F.relu(ret)
+  ret = torch.pow(ret, 2)
+  ret = torch.sum(ret, axis=1)
+  norm = get_avg_edge_length(W, adj_V)
+  ret = torch.divide(ret, norm)
+  # add x and y forces
+  ret = torch.sum(ret, axis=0)
+  return ret
+  
+def get_edgeset(V, adj_V):
+  if type(V) is torch.Tensor:
+    V = V.detach().numpy()
+  ret = []
+  for i in range(len(V)):
+    for j in adj_V[i]:
+      if (j, i) not in ret:
+        ret.append((i, j))
+  return ret
+
 def loss_displacement(W, V, adj_V):
+  norm = get_avg_edge_length(W, adj_V)
+  # squared euclidean distance
+  ret = torch.subtract(W, V)
+  ret = torch.pow(ret, 2)
+  ret = torch.sum(ret, axis=1)
+  ret = torch.sum(ret)
+  # use average edge length as distance normalizer on the map
+  ret = torch.divide(ret, norm)
+  return ret
+
+def get_avg_edge_length(W, adj_V, stoch=True):
   # calculate the average edge length stochastically
   samp_inds = np.random.randint(0, len(adj_V), size=max(1, len(adj_V) // 10))
   edge_samp_i = []
@@ -79,16 +146,10 @@ def loss_displacement(W, V, adj_V):
   norm = torch.sum(norm, axis=1)
   norm = torch.sqrt(norm)
   norm = norm.mean()
-  # squared euclidean distance
-  ret = torch.subtract(W, V)
-  ret = torch.pow(ret, 2)
-  ret = torch.sum(ret, axis=1)
-  ret = torch.sum(ret)
-  ret = torch.divide(ret, norm)
-  return ret
+  return norm
 
 def loss_crossings(W, adj_V):
-  ints = get_intersects(W.detach().numpy(), adj_V)
+  ints = get_intersects(W, adj_V)
   p_idx = []
   q_idx = []
   r_idx = []
@@ -116,28 +177,7 @@ def is_lower_endpoint(p_idx, adj_V, status):
     if p_nbr not in status[:,0]:
       return False
   return True 
-  
-def get_edgeset(W, adj_V):
-  p_inds = []
-  q_inds = []
-  for i, p in enumerate(W):
-    for j in adj_V[i]:
-      q = W[j]
-      if not (i in q_inds or j in p_inds):
-        p_inds.append(i)
-        q_inds.append(j)
-  ps = np.take(W, p_inds, axis=0)
-  ps = np.expand_dims(ps, axis=1)
 
-  qs = np.take(W, q_inds, axis=0)
-  qs = np.expand_dims(qs, axis=1)
-
-  ret = np.append(ps, qs, axis=1)
-  # add extra column to keep track of upper endpoint
-  # 0 = upper endpoint first; 1 = lower endpoint first
-  ret = np.append(ret, np.zeros(shape=ps.shape), axis=1) 
-  return ret
-    
 def loss_angular_res(W, adj_V):
   # get indices for incident edges for vectorization
   sens = 1 # sensitivity of angular energy 
@@ -216,6 +256,8 @@ def get_intersects(V, adj_V):
   Naive O(n^2) check on intersection,
   TODO: change to line sweep when necessary.
   '''
+  if type(V) is torch.Tensor:
+    V = V.detach().numpy()
   # get list with vertex pairs forming edges
   E = []
   for v in range(len(V)):
@@ -243,4 +285,3 @@ def get_intersects(V, adj_V):
     }
     ret.append(intersect)
   return ret
-
