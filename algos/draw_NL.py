@@ -25,7 +25,6 @@ def get_edgeset(V, adj_V):
         ret.append((i, j))
   return ret
 
-
 def draw_map(V, adj_V):
   import plotly.express as px
   import plotly.graph_objects as go
@@ -46,7 +45,7 @@ def to_lat_lon(X):
   from pyproj import Transformer
   trans = Transformer.from_crs(28992, 4326)
   ret = trans.itransform(X)
-  ret = np.array([p for p in ret])
+  ret = np.array(list(ret))
   return ret
 
 if __name__ == "__main__":
@@ -64,18 +63,16 @@ if __name__ == "__main__":
   with open(GEM_FILE) as gem_data:
     gem_data = json.load(gem_data)
     coords, adj_gem = format_json_loads(gem_data)
+    #num_iters = 1
     num_iters = int(input("Number of iterations: "))
-    W, losses = GD2.train(coords, adj_gem, N=num_iters, lr=600, w_disp=0.00001, w_cross=1, w_ang_res=1)
+    W, losses = GD2.train(coords, adj_gem, N=num_iters, lr=400, w_disp=0.00001, w_cross=1, w_ang_res=1, w_gabriel=1)
     W = W.detach().numpy()
     disps = geo.get_displacement(W, coords)
 
-    gd.draw(W, adj_gem)
+   # gd.draw(W, adj_gem)
     W = to_lat_lon(W)
 
     draw_map(W, adj_gem)
-
-    plt.scatter(x=W[:,0], y=W[:,1], c=disps, s=200, cmap='YlOrRd')
-    plt.show()
 
     plt.plot(losses, 'bo-')
     plt.title('Total Loss')
