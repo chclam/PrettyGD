@@ -4,9 +4,11 @@ import graphdrawing as gd
 import matplotlib.pyplot as plt
 import os
 import json
+import plotly.express as px
+import plotly.graph_objects as go
 import numpy as np
-import geometry as geo
 
+import geometry as geo
 
 def format_json_loads(X):
   coords = X['gemeentes']
@@ -38,6 +40,13 @@ def draw_map(V, adj_V):
   fig.update_layout(mapbox_style='open-street-map', mapbox_zoom=5)
   fig.show()
 
+def draw_disp_map(W, V):
+  NODE_SIZE = 10
+  fig = px.scatter_mapbox(lat=W[:,0], lon=W[:,1])
+  fig.add_trace(go.Scattermapbox(lat=V[:,0], lon=V[:,1], mode='markers', showlegend=True, name="Original Positions"))
+  fig.update_layout(mapbox_style='open-street-map', mapbox_zoom=5)
+  fig.show()
+
 def to_lat_lon(X):
   '''
   Convert from rijkdriehoekscoordinaten (espg 28992) to lat lon (espg 4326).
@@ -63,16 +72,16 @@ if __name__ == "__main__":
   with open(GEM_FILE) as gem_data:
     gem_data = json.load(gem_data)
     coords, adj_gem = format_json_loads(gem_data)
-    #num_iters = 1
     num_iters = int(input("Number of iterations: "))
-    W, losses = GD2.train(coords, adj_gem, N=num_iters, lr=400, w_disp=0.00001, w_cross=1, w_ang_res=1, w_gabriel=1)
+    W, losses = GD2.train(coords, adj_gem, N=num_iters, lr=400, w_disp=0.0001, w_cross=0, w_ang_res=1, w_gabriel=1)
     W = W.detach().numpy()
     disps = geo.get_displacement(W, coords)
 
-   # gd.draw(W, adj_gem)
     W = to_lat_lon(W)
+    coords = to_lat_lon(coords)
 
     draw_map(W, adj_gem)
+    #draw_disp_map(W, coords)
 
     plt.plot(losses, 'bo-')
     plt.title('Total Loss')
@@ -80,6 +89,5 @@ if __name__ == "__main__":
 
     disps = np.array(disps)
     plt.hist(disps)
-    #plt.plot(disps, 'ro')
     plt.title('Histogram of Displacements')
     plt.show()

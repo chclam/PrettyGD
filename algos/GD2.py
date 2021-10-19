@@ -11,6 +11,13 @@ from itertools import product, combinations
 
 import geometry as geo
 
+
+'''
+TO DO: 
+  * Vectorize get_intersects() as long as line sweep is not implemented.
+
+'''
+
 def train(V, adj_V, N=5, lr=0.001, w_disp=20, w_cross=0.1, w_ang_res=0.2, w_gabriel=0.1):
   W = V.copy()
   W = torch.tensor(W, requires_grad=True)
@@ -59,9 +66,9 @@ def loss_function(W, V, adj_V, w_disp, w_cross, w_ang_res, w_gabriel):
     loss_gabriel = loss_angular_res(W, adj_V)
     loss_gabriel = torch.multiply(loss_gabriel, w_gabriel)
 
-  ret = torch.add(loss_disp, loss_cross)
-  ret = torch.add(ret, loss_ang_res)
-  ret = torch.add(ret, loss_gabriel)
+  ret = (loss_disp, loss_cross, loss_ang_res, loss_gabriel)
+  ret = torch.stack(ret)
+  ret = torch.sum(ret)
   return ret
   
 def loss_gabriel(W, adj_V):
