@@ -40,6 +40,11 @@ def draw_map(V, adj_V, title=None, disps=None):
   fig.add_trace(go.Scattermapbox(lat=V[:,0], lon=V[:,1], mode='markers', marker=go.scattermapbox.Marker(size=12), showlegend=True, name='Gemeenten', subplot='mapbox'))
   #fig.update_layout(mapbox_style='open-street-map', title=title, mapbox=dict(zoom=5, center=dict(lat=V[0,0], lon=V[0,1])))
   map_center = dict(lat=np.median(V[:,0]), lon=np.median(V[:,1]))
+
+  crossings = GD2.get_intersects(V, adj_V)
+  crossings = np.array([c['intersection'] for c in crossings])
+  fig.add_trace(go.Scattermapbox(lat=crossings[:,0], lon=crossings[:,1], mode='markers', marker=go.scattermapbox.Marker(size=10),  name='Crossings', subplot='mapbox'))
+
   fig.update_layout(mapbox_style='open-street-map', title=title, mapbox_zoom=6, mapbox_center=map_center)
   fig.show()
 
@@ -97,5 +102,6 @@ if __name__ == "__main__":
     disps = np.array(disps)
     ax2.hist(disps)
     ax2.set_title('Displacements')
-    ax2.set(xlabel='Gemeente Index', ylabel='Displacement in Meters')
+    ax2.set(xlabel='Displacement in Meters', ylabel='Number of Gemeenten')
     plt.show()
+

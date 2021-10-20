@@ -258,7 +258,7 @@ def get_intersects(V, adj_V):
   '''
   Returns vertex indices of intersecting edges and
   their intersection point.
-  Naive O(n^2) check on intersection,
+  Naive (but vectorized!!!!) O(n^2) check on intersection,
   TODO: change to line sweep when necessary.
   '''
   if type(V) is torch.Tensor:
@@ -271,22 +271,51 @@ def get_intersects(V, adj_V):
         continue
       E.append([v, w])
   # calculate intersections
-  EE = combinations(E, 2)
+  E_inds = np.arange(0, len(E))
+  EE_inds = np.asarray(list(combinations(E_inds, 2)))
+  # get rid of edges that share endpoints
+  PQ_inds = np.take(E, EE_inds[:,0], axis=0)
+  RS_inds = np.take(E, EE_inds[:,1], axis=0)
+  # endpoints p == q <==> p_idx - q_idx == 0
+  same_endpoints = np.argwhere(
+    (PQ_inds[:,0] - RS_inds[:,0] == 0) |
+    (PQ_inds[:,1] - RS_inds[:,1] == 0) |
+    (PQ_inds[:,0] - RS_inds[:,1] == 0) |
+    (PQ_inds[:,1] - RS_inds[:,0] == 0)
+  )
+  PQ_inds = np.delete(PQ_inds, same_endpoints, axis=0)
+  RS_inds = np.delete(RS_inds, same_endpoints, axis=0)
+  # Get x,y values of P,Q,R,S
+  P = np.take(V, PQ_inds[:,0], axis=0)
+  Q = np.take(V, PQ_inds[:,1], axis=0)
+  R = np.take(V, RS_inds[:,0], axis=0)
+  S = np.take(V, RS_inds[:,1], axis=0)
+
+  s1_x = np.subtract(Q[:,0], P[:,0])
+  s1_y = np.subtract(Q[:,1], P[:,1])
+  s2_x = np.subtract(S[:,0], R[:,0])
+  s2_y = np.subtract(S[:,1], R[:,1])
+
+  b =  -s2_x * s1_y + s1_x * s2_y
+  s = (-s1_y * (P[:,0] - R[:,0]) + s1_x * (P[:,1] - R[:,1])) / b
+  t = (s2_x * (P[:,1] - R[:,1]) - s2_y * (P[:,0] - R[:,0])) / b
+
+  int_inds = np.argwhere((s >= 0) & (s <= 1) & (t >= 0) & (t <= 1))
+  
+  ints_x = np.add(P[:,0], np.multiply(t, s1_x))
+  ints_y = np.add(P[:,1], np.multiply(t, s1_y))
+  ints_x = np.squeeze(np.take(ints_x, int_inds, axis=0))
+  ints_y = np.squeeze(np.take(ints_y, int_inds, axis=0))
+  PQ_ints = np.squeeze(np.take(PQ_inds, int_inds, axis=0))
+  RS_ints = np.squeeze(np.take(RS_inds, int_inds, axis=0))
+
   ret = []
-  for [p, q], [r, s] in EE:
-    if len(set([p, q, r, s])) < 4:
-      continue # get rid of incident edges
-    e1 = LineString([V[p], V[q]])
-    e2 = LineString([V[r], V[s]])
-    if not e1.intersects(e2):
-      continue 
-    int_pnt = e1.intersection(e2).xy
-    int_pnt = np.array(int_pnt)
-    int_pnt = np.squeeze(int_pnt)
-    intersect = {
-      'e1': [p, q],
-      'e2': [r, s],
-      'intersection': int_pnt
-    }
-    ret.append(intersect)
+  for i in range(len(ints_x)):
+    it = dict(
+      e1=PQ_ints[i], 
+      e2=RS_ints[i], 
+      intersection=[ints_x[i], ints_y[i]]
+    )
+    ret.append(it)
   return ret
+
