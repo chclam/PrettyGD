@@ -104,8 +104,6 @@ def loss_gabriel(W, adj_V):
   ret = F.relu(ret)
   ret = torch.pow(ret, 2)
   ret = torch.sum(ret, axis=1)
-  norm = get_avg_edge_length(W, adj_V)
-  ret = torch.divide(ret, norm)
   # add x and y forces
   ret = torch.sum(ret, axis=0)
   return ret
