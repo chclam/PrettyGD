@@ -7,6 +7,7 @@ import json
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
+import sys
 
 import geometry as geo
 
@@ -38,7 +39,6 @@ def draw_map(V, adj_V, title=None, disps=None):
   fig.add_trace(go.Scattermapbox(lat=edges[:,0], lon=edges[:,1], mode='lines', name='Woon-werk-relatie', subplot='mapbox'))
   # draw vertices
   fig.add_trace(go.Scattermapbox(lat=V[:,0], lon=V[:,1], mode='markers', marker=go.scattermapbox.Marker(size=12), showlegend=True, name='Gemeenten', subplot='mapbox'))
-  #fig.update_layout(mapbox_style='open-street-map', title=title, mapbox=dict(zoom=5, center=dict(lat=V[0,0], lon=V[0,1])))
   map_center = dict(lat=np.median(V[:,0]), lon=np.median(V[:,1]))
 
   crossings = GD2.get_intersects(V, adj_V)
@@ -67,6 +67,7 @@ def to_lat_lon(X):
 
 if __name__ == "__main__":
   GEM_FILE = "gemeente_data.json"
+  num_iters = int(sys.argv[1]) if len(sys.argv) > 1 else 30
 
   if GEM_FILE not in os.listdir():
     coords, adj_gem = odf.get_ww()
@@ -80,7 +81,6 @@ if __name__ == "__main__":
   with open(GEM_FILE) as gem_data:
     gem_data = json.load(gem_data)
     coords, adj_gem = format_json_loads(gem_data)
-    num_iters = int(input("Number of iterations: "))
     W, losses = GD2.train(coords, adj_gem, N=num_iters, lr=400, w_disp=0.0001, w_cross=1, w_ang_res=1, w_gabriel=1)
     W = W.detach().numpy()
     disps = geo.get_displacement(W, coords)

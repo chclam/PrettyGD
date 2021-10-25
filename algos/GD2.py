@@ -5,7 +5,6 @@ from torch.optim.lr_scheduler import ExponentialLR
 from tqdm import trange 
 from math import pi
 import numpy as np
-from sortedcontainers import SortedList, SortedKeyList
 from shapely.geometry import LineString
 from itertools import product, combinations
 
