@@ -32,8 +32,42 @@ def train(V, adj_V, N=5, lr=0.001, w_disp=20, w_cross=0.1, w_ang_res=0.2, w_gabr
     sch.step()
     loss = loss.item()
     losses.append(loss)
+    get_scores(W, V, adj_V)
     t.set_description(f"Loss: {loss:.6f}; Progress")
   return W, losses
+
+def get_scores(W, V, adj_V):
+  l = get_avg_edge_length(V, adj_V)
+  W = W.detach().numpy()
+  V = V.detach().numpy()
+  ret = {
+    'disp': 0, 
+    'anr': 0, 
+    'cam': 0
+  }
+  # displacement score
+  disp = np.subtract(W, V)
+  disp = np.square(disp)
+  disp = np.sum(disp, axis=1)
+  disp = np.max(disp)
+  disp = np.divide(disp, l ** 2)
+  disp = min(1, disp)
+  ret['disp'] = 1 - disp
+  # angular resolution score
+  ang = get_angles(W, adj_V)
+  anr = np.min(ang)
+  #anr = np.mean(ang)
+  d_mean = np.max([len(adj_V[k]) for k in adj_V.keys()])
+  d_mean = np.round(d_mean)
+  q_anr = anr / (2 * pi / d_mean)
+  ret['anr'] = q_anr
+  print(ret)
+  #print(ret)
+  # cross angular resolution score
+  #ints = get_intersects(W, adj_V)
+  #max(ints['ints'])
+  return ret
+  
 
 def loss_function(W, V, adj_V, w_disp, w_cross, w_ang_res, w_gabriel):
   # weights to tensor
@@ -118,14 +152,14 @@ def get_edgeset(V, adj_V):
   return ret
 
 def loss_displacement(W, V, adj_V):
-  norm = get_avg_edge_length(W, adj_V)
+  #norm = get_avg_edge_length(W, adj_V)
   # squared euclidean distance
   ret = torch.subtract(W, V)
   ret = torch.pow(ret, 2)
   ret = torch.sum(ret, axis=1)
   ret = torch.sum(ret)
   # use average edge length as distance normalizer on the map
-  ret = torch.divide(ret, norm)
+  #ret = torch.divide(ret, norm)
   return ret
 
 def get_avg_edge_length(W, adj_V, stoch=True):
@@ -176,15 +210,22 @@ def loss_crossings(W, adj_V):
   ret = torch.sum(ret)
   return ret
 
-def is_lower_endpoint(p_idx, adj_V, status):
-  for p_nbr in adj_V[p_idx]:
-    if p_nbr not in status[:,0]:
-      return False
-  return True 
 
 def loss_angular_res(W, adj_V):
-  # get indices for incident edges for vectorization
   sens = 1 # sensitivity of angular energy 
+  ang = get_angles(W, adj_V)
+  # calculate loss of the calculated angles
+  sens = torch.tensor(sens)
+  sens = torch.multiply(torch.tensor(-1), sens)
+  ret = torch.multiply(sens, ang)
+  ret = torch.exp(ret)
+  ret = torch.sum(ret)
+  return ret
+
+def get_angles(W, adj_V):
+  if (to_tensor := (type(W) is not torch.Tensor)):
+    W = torch.Tensor(W)
+  # get indices for incident edges for vectorization
   i_idx = []
   j_idx = []
   k_idx = []
@@ -211,14 +252,13 @@ def loss_angular_res(W, adj_V):
   t = torch.sum(t, axis=1)
   b = torch.multiply(torch.norm(ji, dim=1), torch.norm(ki, dim=1))
   ang = torch.divide(t, b)
-  ang = torch.arccos(ang)
-  # calculate loss of the calculated angles
-  sens = torch.tensor(sens)
-  sens = torch.multiply(torch.tensor(-1), sens)
-  ret = torch.multiply(sens, ang)
-  ret = torch.exp(ret)
-  ret = torch.sum(ret)
-  return ret
+  # get rid of rounding errors to prevent undefined inputs in arccos
+  ang = torch.max(ang, -torch.ones(len(ang)))
+  ang = torch.min(ang, torch.ones(len(ang)))
+  ang = torch.acos(ang)
+  if to_tensor:
+    ang = ang.detach().numpy()
+  return ang
 
 def to_vert_vals(vert_idx, W):
   '''

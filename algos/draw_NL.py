@@ -50,7 +50,18 @@ def draw_map(V, adj_V, title=None, disps=None):
 
 def draw_disp_map(W, V):
   NODE_SIZE = 10
-  fig = px.scatter_mapbox(lat=W[:,0], lon=W[:,1])
+  #fig = px.scatter_mapbox(lat=W[:,0], lon=W[:,1])
+  #fig = px.scatter_mapbox()
+  disp_edges = []
+  for i, v in enumerate(V):
+    disp_edges.extend([W[i], V[i], [None, None]])
+  disp_edges = np.array(disp_edges)
+  #fig = px.scatter_mapbox(lat=disp_edges[:,0], lon=disp_edges[:,1], mode='lines',color='rgb(255, 255, 255)', name='displacements')
+  fig = go.Figure(go.Scattermapbox(lat=disp_edges[:,0], lon=disp_edges[:,1], mode='lines', name='displacements', subplot='mapbox'))
+  #fig.add_trace(go.Scattermapbox(lat=disp_edges[:,0], lon=disp_edges[:,1], mode='lines',color='rgb(255, 255, 255)', name='displacements', subplot='mapbox'))
+
+  fig.update_traces(line_color='rgb(0, 0, 0)', selector=dict(type='scattermapbox'))
+  fig.add_trace(go.Scattermapbox(lat=W[:,0], lon=W[:,1], mode='markers', showlegend=True, name="New Positions"))
   fig.add_trace(go.Scattermapbox(lat=V[:,0], lon=V[:,1], mode='markers', showlegend=True, name="Original Positions"))
   fig.update_layout(mapbox_style='open-street-map')
   fig.show()
@@ -81,12 +92,23 @@ if __name__ == "__main__":
   with open(GEM_FILE) as gem_data:
     gem_data = json.load(gem_data)
     coords, adj_gem = format_json_loads(gem_data)
-    W, losses = GD2.train(coords, adj_gem, N=num_iters, lr=400, w_disp=0.0001, w_cross=1, w_ang_res=1, w_gabriel=1)
+    loss_t = []
+    from sklearn.preprocessing import MinMaxScaler
+    scaler = MinMaxScaler()
+    coords_scaled = scaler.fit_transform(coords)
+    params = [1, 0.1, 0.01, 0.001]
+    W, losses = GD2.train(coords_scaled, adj_gem, N=num_iters, lr=0.001, w_disp=1, w_cross=1, w_ang_res=1, w_gabriel=1)
+    
     W = W.detach().numpy()
+    W = scaler.inverse_transform(W)
+    #plt.plot(W[:,0], W[:,1])
+    #plt.show()
+    #exit()
     disps = geo.get_displacement(W, coords)
 
     W = to_lat_lon(W)
     coords = to_lat_lon(coords)
+#    draw_disp_map(W, coords)
 
     draw_map(coords, adj_gem, title='Original Positions')
     draw_map(W, adj_gem, title='New Positions', disps=disps)
