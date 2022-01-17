@@ -54,8 +54,7 @@ weights = {
 ## Example: Commute Data of the Netherlands
 Run the following line to see an application on real-life data, along with various visualizations. This program uses the library ``mapbox`` to plot the graphs on a geographic map and also creates a file in the same folder for further statistics.
 
-```shellscript
+```shell
 git clone https://github.com/chclam/PrettyGD.git && cd PrettyGD
 python3 commute_nl.py
-
 ```
