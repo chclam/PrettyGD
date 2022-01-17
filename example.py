@@ -1,21 +1,23 @@
-from prettygd import PrettyGD 
-import matplotlib.pyplot as plt
 import os
-import json
-import plotly.graph_objects as go
-import numpy as np
 import sys
+import json
 
-# import geometry as geo
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+from pyproj import Transformer
 
-def format_json_loads(X):
-  coords = X['gemeentes']
-  coords = np.array(coords)
-  adj_gem_raw = X['adj_list']
-  adj_gem = {}
-  for k in adj_gem_raw.keys():
-    adj_gem[int(k)] = adj_gem_raw[k]
-  return coords, adj_gem
+import graph as G
+from prettygd import PrettyGD 
+
+def to_lat_lon(X):
+  '''
+  Convert to lat-lon (espg 4326) from rijkdriehoekscoordinaten (espg 28992).
+  '''
+  trans = Transformer.from_crs(28992, 4326)
+  ret = trans.itransform(X)
+  ret = np.array(list(ret))
+  return ret
 
 def draw_map(V, adj_V, title=None):
   fig = go.Figure()
@@ -33,16 +35,14 @@ def draw_map(V, adj_V, title=None):
   fig.show()
 
 def draw_disp_map(W, V):
-  NODE_SIZE = 10
-  #fig = px.scatter_mapbox(lat=W[:,0], lon=W[:,1])
-  #fig = px.scatter_mapbox()
+  '''
+  Draws the original and new positions of the vertices on the map.
+  '''
   disp_edges = []
   for i, v in enumerate(V):
     disp_edges.extend([W[i], V[i], [None, None]])
   disp_edges = np.array(disp_edges)
-  #fig = px.scatter_mapbox(lat=disp_edges[:,0], lon=disp_edges[:,1], mode='lines',color='rgb(255, 255, 255)', name='displacements')
   fig = go.Figure(go.Scattermapbox(lat=disp_edges[:,0], lon=disp_edges[:,1], mode='lines', name='displacements', subplot='mapbox'))
-  #fig.add_trace(go.Scattermapbox(lat=disp_edges[:,0], lon=disp_edges[:,1], mode='lines',color='rgb(255, 255, 255)', name='displacements', subplot='mapbox'))
 
   fig.update_traces(line_color='rgb(0, 0, 0)', selector=dict(type='scattermapbox'))
   fig.add_trace(go.Scattermapbox(lat=W[:,0], lon=W[:,1], mode='markers', showlegend=True, name="New Positions"))
@@ -50,71 +50,56 @@ def draw_disp_map(W, V):
   fig.update_layout(mapbox_style='open-street-map')
   fig.show()
 
-def to_lat_lon(X):
-  '''
-  Convert from rijkdriehoekscoordinaten (espg 28992) to lat lon (espg 4326).
-  '''
-  from pyproj import Transformer
-  trans = Transformer.from_crs(28992, 4326)
-  ret = trans.itransform(X)
-  ret = np.array(list(ret))
-  return ret
-
+def plot_stats(losses, disps, fname):
+  # loss graph
+  fig, (ax1, ax2) = plt.subplots(2, 1)
+  fig.tight_layout(pad=5.0)
+  ax1.plot(losses, 'ro-')
+  ax1.set_title('Total Loss')
+  ax1.set(xlabel='Iteration', ylabel='Total Loss')
+ 
+  # histogram of displacements
+  ax2.hist(disps)
+  ax2.set_title('Displacements')
+  ax2.set(xlabel='Displacement in Meters', ylabel='Number of Gemeenten')
+  try:
+    plt.savefig(fname)
+    print(f"{fname} has been saved.")
+  except Exception as e:
+    print("Failed to plot the statistics: {e}")
+    
 if __name__ == "__main__":
-  GEM_FILE = "gemeente_data.json"
-  num_iters = int(sys.argv[1]) if len(sys.argv) > 1 else 30
+  DATA_FILE = "datasets/gemeente_data.json"
+  N = 10
 
-  if GEM_FILE not in os.listdir("datasets/"):
-    #coords, adj_gem = odf.get_ww()
-    with open(GEM_FILE, 'w') as out:
-      X = {
-        'gemeentes': coords.tolist(),
-        'adj_list': adj_gem
-      }
-      json.dump(X, out)
+  try:
+    with open(DATA_FILE) as gem_data:
+      gem_data = json.load(gem_data)
 
-  with open(f"datasets/{GEM_FILE}") as gem_data:
-    gem_data = json.load(gem_data)
-    coords, adj_gem = format_json_loads(gem_data)
-    loss_t = []
-    from sklearn.preprocessing import MinMaxScaler
-    scaler = MinMaxScaler()
-    coords_scaled = scaler.fit_transform(coords)
+    # format dataset
+    gem_coords = np.array(gem_data['gemeentes']) # coordinate of every gemeente (municipality)
+    adj_gem = gem_data['adj_list'] # adjacency list of the gemeenten (connectivity of each gemeente)
+    adj_gem = dict([(int(k), adj_gem[k]) for k in adj_gem.keys()]) # format to proper dictionary with integer keys
+      
+    # load data to PrettyGD and get new coordinates
     pgd = PrettyGD(lr=0.001)
-    pgd.fit(coords_scaled, adj_gem)
-    pgd.train(N=30)
-    W = pgd.get_graph_coords()
-    W = to_lat_lon(W)
-    draw_map(W, adj_gem, title='New Positions')
-    
-    exit()
-    W, losses = PrettyGD.train(coords_scaled, adj_gem, N=num_iters, lr=0.001, w_disp=1, w_cross=1, w_ang_res=1, w_gabriel=1)
-    
-    W = W.detach().numpy()
-    W = scaler.inverse_transform(W)
-    #plt.plot(W[:,0], W[:,1])
-    #plt.show()
-    #exit()
-    disps = geo.get_displacement(W, coords)
+    pgd.fit(gem_coords, adj_gem)
+    pgd.train(N)
+    new_coords = pgd.get_graph_coords()
 
-    W = to_lat_lon(W)
-    coords = to_lat_lon(coords)
-#    draw_disp_map(W, coords)
+    # convert and draw results
+    disps = G.get_displacements(gem_coords, new_coords)
+    gem_coords = to_lat_lon(gem_coords) 
+    new_coords = to_lat_lon(new_coords) 
 
-    draw_map(coords, adj_gem, title='Original Positions')
-    draw_map(W, adj_gem, title='New Positions')
+    plot_stats(pgd.losses, disps, fname="stats_displacement.jpg")
+    draw_map(new_coords, adj_gem, title='New Positions')
+    # uncomment the following line to visualize the displacements on the map
+    # draw_disp_map(new_coords, gem_coords) 
 
-    # loss graph
-    fig, (ax1, ax2) = plt.subplots(2, 1)
-    fig.tight_layout(pad=5.0)
-    ax1.plot(losses, 'ro-')
-    ax1.set_title('Total Loss')
-    ax1.set(xlabel='Iteration', ylabel='Total Loss')
+  except OSError as e:
+    print(f"OS error: {e}")
 
-    # histogram
-    disps = np.array(disps)
-    ax2.hist(disps)
-    ax2.set_title('Displacements')
-    ax2.set(xlabel='Displacement in Meters', ylabel='Number of Gemeenten')
-    plt.show()
-
+  except BaseException as e:
+    print(f"Unexpected error: {e}")
+  

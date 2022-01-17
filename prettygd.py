@@ -1,14 +1,11 @@
-#import torch
-#from math import pi
-#import numpy as np
-
+from math import sqrt
+from itertools import product, combinations
 import numpy as np
 import torch as tt
 from torch.optim import Adam
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ExponentialLR
 from tqdm import trange 
-from itertools import product
 from sklearn.preprocessing import MinMaxScaler
 
 import graph as G
@@ -17,11 +14,13 @@ import graph as G
 class PrettyGD:
   def __init__(self, lr=0.001, weights=None):
     self.lr = lr
+    self.losses = []
     self.weights = {
       "displacement": 1,
       "crossing_ang_res": 1,
       "angular_res": 1,
-      "gabriel": 1
+      "gabriel": 1,
+      "vertex_res": 1
     }
     if weights is not None:
       self.weights.update(weights)
@@ -37,15 +36,14 @@ class PrettyGD:
   def train(self, N=10):
     opt = Adam([self.W], lr=self.lr)
     sch = ExponentialLR(opt, gamma=0.9)
-    losses = []
     self.weights = dict([(k, tt.tensor(self.weights[k])) for k in self.weights.keys()])
     for i in (t:= trange(N)):
       opt.zero_grad()
-      loss = self.get_graph_loss()
+      loss = self.graph_loss()
       loss.backward()
       opt.step()
       sch.step()
-      losses.append(loss.item())
+      self.losses.append(loss.item())
       t.set_description(f"Loss: {loss:.6f}; Progress")
 
   def get_graph_coords(self):
@@ -53,7 +51,7 @@ class PrettyGD:
     ret = self.scaler.inverse_transform(ret)
     return ret
 
-  def get_graph_loss(self):
+  def graph_loss(self):
     loss_disp = self.loss_displacement()
     loss_disp = tt.multiply(loss_disp, self.weights['displacement'])
 
@@ -66,11 +64,14 @@ class PrettyGD:
     loss_gabriel = self.loss_gabriel()
     loss_gabriel = tt.multiply(loss_gabriel, self.weights['gabriel'])
 
-    ret = (loss_disp, loss_cross, loss_ang_res, loss_gabriel)
+    loss_vert_res = self.loss_vert_res()
+    loss_vert_res = tt.multiply(loss_vert_res, self.weights['vertex_res'])
+
+    ret = (loss_disp, loss_cross, loss_ang_res, loss_gabriel, loss_vert_res)
     ret = tt.stack(ret)
     ret = tt.sum(ret)
     return ret
-
+  
   def loss_displacement(self):
     # squared euclidean distance
     ret = tt.subtract(self.W, self.V)
@@ -89,6 +90,27 @@ class PrettyGD:
     ret = tt.exp(ret)
     ret = tt.sum(ret)
     return ret
+
+  def loss_vert_res(self):
+    r = 1 / sqrt(len(self.W))
+    W_idx = np.arange(0, len(self.W))
+    WW = list(combinations(W_idx, 2)) 
+    WW = np.asarray(WW)
+    W_i = G.to_vert_vals(WW[:,0], self.W)
+    W_j = G.to_vert_vals(WW[:,1], self.W)
+    # euclidean distance
+    ret = tt.subtract(W_i, W_j)
+    ret = tt.square(ret)
+    ret = tt.sum(ret, axis=1)
+    ret = tt.sqrt(ret)
+    d_max = tt.max(ret)
+    ret = tt.divide(ret, r * d_max)
+    # the rest with relu etc.
+    ret = tt.subtract(tt.ones(len(ret)), ret)
+    ret = F.relu(ret)
+    ret = tt.square(ret)
+    ret = tt.sum(ret)
+    return ret 
 
   def loss_crossings(self):
     ints = G.get_intersects(self.W, self.edge_li)

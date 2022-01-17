@@ -57,14 +57,6 @@ def get_edge_li(V, adj_V):
       ret.append([v, w])
   return ret
 
-#  if type(V) is tt.Tensor():
-#    V = V.detach().numpy()
-#  ret = []
-#  for i in range(len(V)):
-#    for j in adj_V[i]:
-#      if (j, i) not in ret:
-#        ret.append((i, j))
-
 def get_nbr_order(v, V, adj_v):
   '''
   return the circular order of the neighbors of v starting
@@ -97,13 +89,6 @@ def get_intersects(V, edge_li):
   '''
   if type(V) is tt.Tensor:
     V = V.detach().numpy()
-#  # get list with vertex pairs forming edges
-#  E = []
-#  for v in range(len(V)):
-#    for w in adj_V[v]:
-#      if [w, v] in E:
-#        continue
-#      E.append([v, w])
   # calculate intersections
   E_inds = np.arange(0, len(edge_li))
   EE_inds = np.asarray(list(combinations(E_inds, 2)))
@@ -163,3 +148,11 @@ def to_vert_vals(vert_idx, V):
   vert_vals = tt.gather(V, 0, vert_idx)
   return vert_vals
 
+def get_displacements(V, W):
+  # returns the euclidean distance
+  ret = np.subtract(V, W)
+  ret = np.square(ret)
+  ret = np.sum(ret, axis=1)
+  ret = np.sqrt(ret)
+  return ret
+  
