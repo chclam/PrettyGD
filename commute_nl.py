@@ -70,7 +70,7 @@ def plot_stats(losses, disps, fname):
     
 if __name__ == "__main__":
   DATA_FILE = "datasets/gemeente_data.json"
-  N = 10
+  N = 30
 
   try:
     with open(DATA_FILE) as gem_data:
