@@ -1,5 +1,5 @@
 # PrettyGD
-PrettyGD makes your geographic graph drawings prettier by optimizing on various aesthetics. It takes as input a graph with initialized vertex positions on the map and reassigns better a position for each vertex on the map. Vertices have better placements with respect to various "aesthetic criteria" such as vertex or edge overlaps. PrettyGD uses the Gradient Descent algorithm powered by PyTorch. It currently supports the optimization on the following aesthetic criteria:
+PrettyGD makes your geographic graph drawings prettier by optimizing on various aesthetics. It takes as input a graph with initialized vertex positions on the map and reassigns a better position for each vertex. Vertices have better placements with respect to various "aesthetic criteria" such as vertex or edge overlaps. PrettyGD uses the Gradient Descent algorithm powered by PyTorch. It currently supports the optimization on the following aesthetic criteria:
 
   1. Displacement: the displacement of each vertex from its initial position;
   2. Angular Resolution: the angles formed by adjacent edges of a vertex;
