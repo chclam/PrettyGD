@@ -1,11 +1,11 @@
 # PrettyGD
 PrettyGD makes your geographic graph drawings prettier by optimizing on various aesthetics. It takes as input a graph with initialized vertex positions on the map and reassigns a better position for each vertex. Vertices have better placements with respect to various "aesthetic criteria" such as vertex or edge overlaps. PrettyGD uses the Gradient Descent algorithm powered by PyTorch. It currently supports the optimization on the following aesthetic criteria:
 
-  1. Displacement: the displacement of each vertex from its initial position;
-  2. Angular Resolution: the angles formed by adjacent edges of a vertex;
-  3. Cross Angular Resolution: the angles formed by edge crossings;
-  4. Gabriel Graph Property: the distance between vertices and unadjacent edges on the map;
-  5. Vertex Resolution: the distance between vertices on the map.
+  1. **Displacement**: the displacement of each vertex from its initial position;
+  2. **Angular Resolution**: the angles formed by adjacent edges of a vertex;
+  3. **Cross Angular Resolution**: the angles formed by edge crossings;
+  4. **Gabriel Graph Property**: the distance between vertices and unadjacent edges on the map;
+  5. **Vertex Resolution**: the distance between vertices on the map.
 
 PrettyGD is written in Python3 and is tested in version 3.9.9.
 This project is the result of a research internship at Statistics Netherlands.
@@ -61,7 +61,7 @@ pgd_losses = pgd.losses
 ## Example: Commute Data of the Netherlands
 Run the following line to see an application on real-life data, along with various visualizations. This program uses the library ``mapbox`` to plot the graphs on a geographic map and also creates a file in the same folder for further statistics.
 
-```shell
+```console
 git clone https://github.com/chclam/PrettyGD.git && cd PrettyGD
 python3 commute_nl.py
 ```
