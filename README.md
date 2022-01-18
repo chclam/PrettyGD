@@ -19,7 +19,7 @@ from prettygd import PrettyGD
 vert_coords = [[0,0], [1,0.5], [0,1]]
 adjacency_list = {0: [1,2], 1: [0,2], 2: [0,1]}
 
-pgd = PrettyGD(lr=0.001, weights={"displacement": 1, "vertex_res": 0.5})
+pgd = PrettyGD(lr=0.1, weights={"displacement": 1, "vertex_res": 0.5})
 pgd.fit(vert_coords, adjacency_list)
 pgd.train(N=50)
 new_coords = pgd.get_graph_coords()
@@ -48,7 +48,14 @@ weights = {
   "gabriel": 1,
   "vertex_res": 1
 }
+pgd = PrettyGD(lr=0.01, weights)
+```
 
+### Losses
+Every instance of PrettyGD keeps a list of losses. It can be accessed as follows:
+
+```python
+pgd_losses = pgd.losses
 ```
 
 ## Example: Commute Data of the Netherlands

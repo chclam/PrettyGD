@@ -72,34 +72,28 @@ if __name__ == "__main__":
   DATA_FILE = "datasets/gemeente_data.json"
   N = 30
 
-  try:
-    with open(DATA_FILE) as gem_data:
-      gem_data = json.load(gem_data)
+  with open(DATA_FILE) as gem_data:
+    gem_data = json.load(gem_data)
 
-    # format dataset
-    gem_coords = np.array(gem_data['gemeentes']) # coordinate of every gemeente (municipality)
-    adj_gem = gem_data['adj_list'] # adjacency list of the gemeenten (connectivity of each gemeente)
-    adj_gem = dict([(int(k), adj_gem[k]) for k in adj_gem.keys()]) # format to proper dictionary with integer keys
-      
-    # load data to PrettyGD and get new coordinates
-    pgd = PrettyGD(lr=0.001)
-    pgd.fit(gem_coords, adj_gem)
-    pgd.train(N)
-    new_coords = pgd.get_graph_coords()
+  # format dataset
+  gem_coords = np.array(gem_data['gemeentes']) # coordinate of every gemeente (municipality)
+  adj_gem = gem_data['adj_list'] # adjacency list of the gemeenten (connectivity of each gemeente)
+  adj_gem = dict([(int(k), adj_gem[k]) for k in adj_gem.keys()]) # format to proper dictionary with integer keys
+    
+  # load data to PrettyGD and get new coordinates
+  pgd = PrettyGD(lr=0.001)
+  pgd.fit(gem_coords, adj_gem)
+  pgd.train(N)
+  new_coords = pgd.get_graph_coords()
 
-    # convert and draw results
-    disps = G.get_displacements(gem_coords, new_coords)
-    gem_coords = to_lat_lon(gem_coords) 
-    new_coords = to_lat_lon(new_coords) 
+  # convert and draw results
+  disps = G.get_displacements(gem_coords, new_coords)
+  gem_coords = to_lat_lon(gem_coords) 
+  new_coords = to_lat_lon(new_coords) 
 
-    plot_stats(pgd.losses, disps, fname="stats_displacement.jpg")
-    draw_map(new_coords, adj_gem, title='New Positions')
-    # uncomment the following line to visualize the displacements on the map
-    # draw_disp_map(new_coords, gem_coords) 
+  plot_stats(pgd.losses, disps, fname="stats_displacement.jpg")
+  draw_map(new_coords, adj_gem, title='New Positions')
+  # uncomment the following line to visualize the displacements on the map
+  # draw_disp_map(new_coords, gem_coords) 
 
-  except OSError as e:
-    print(f"OS error: {e}")
-
-  except BaseException as e:
-    print(f"Unexpected error: {e}")
   
