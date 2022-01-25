@@ -7,8 +7,20 @@ PrettyGD makes your geographic graph drawings prettier by optimizing on various 
   4. **Gabriel Graph Property**: the distance between vertices and unadjacent edges on the map;
   5. **Vertex Resolution**: the distance between vertices on the map.
 
-PrettyGD is written in Python3 and is tested in version 3.9.9.
 This project is the result of a research internship at Statistics Netherlands.
+
+## Prerequisites
+PrettyGD is written in ``Python3`` and is tested in version 3.9.9. Although it should also work with version > 3.8.0. 
+Run the following shell command for a minimum install of the Python dependencies using ``pip``:
+
+```shell
+pip3 install numpy torch torchvision torchaudio sklearn tqdm
+```
+You might have to install the following in order to execute ``commute_nl.py``:
+
+```shell
+pip3 install matplotlib plotly pyproj
+```
 
 ## Usage
 The syntax of PrettyGD is designed to be similar to libraries in _scikit-learn_. See the following example:
