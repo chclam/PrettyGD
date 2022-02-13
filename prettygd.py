@@ -83,6 +83,7 @@ class PrettyGD:
   def loss_angular_res(self):
     SENS = 1 # sensitivity of angular energy 
     ang = G.get_angles(self.W, self.adj_V)
+
     # calculate loss of the calculated angles
     SENS = tt.tensor(SENS)
     SENS = tt.multiply(tt.tensor(-1), SENS)
@@ -98,6 +99,7 @@ class PrettyGD:
     WW = np.asarray(WW)
     W_i = G.to_vert_vals(WW[:,0], self.W)
     W_j = G.to_vert_vals(WW[:,1], self.W)
+
     # euclidean distance
     ret = tt.subtract(W_i, W_j)
     ret = tt.square(ret)
@@ -105,6 +107,7 @@ class PrettyGD:
     ret = tt.sqrt(ret)
     d_max = tt.max(ret)
     ret = tt.divide(ret, r * d_max)
+
     # the rest with relu etc.
     ret = tt.subtract(tt.ones(len(ret)), ret)
     ret = F.relu(ret)
@@ -123,11 +126,13 @@ class PrettyGD:
       q_idx.append(it['e1'][1])
       r_idx.append(it['e2'][0])
       s_idx.append(it['e2'][1])
+
     # gather the vectorized vertex positions from indices
     p = G.to_vert_vals(p_idx, self.W)
     q = G.to_vert_vals(q_idx, self.W)
     r = G.to_vert_vals(r_idx, self.W)
     s = G.to_vert_vals(s_idx, self.W)
+
     # calculate vectorized crossing angle
     e1 = tt.subtract(p, q)
     e2 = tt.subtract(r, s)
@@ -144,6 +149,7 @@ class PrettyGD:
     EW_inds = np.asarray(list(product(edge_inds, W_inds)))
     IJ = np.take(edges, EW_inds[:,0], axis=0)
     K = EW_inds[:,1]
+
     # remove instances where i = k or j = k, i.e. where vert k == endpoints i or j 
     same_ijk = [] 
     same_ijk.extend(np.argwhere(np.subtract(IJ[:,0], K) == 0))
