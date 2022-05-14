@@ -8,13 +8,15 @@ from torch.optim.lr_scheduler import ExponentialLR
 from tqdm import trange 
 from sklearn.preprocessing import MinMaxScaler
 
-import graph as G
+from . import graph as G
 
 
 class PrettyGD:
   def __init__(self, lr=0.001, weights=None):
     self.lr = lr
     self.losses = []
+    self.opt = None
+    self.sch = None
     self.weights = {
       "displacement": 1,
       "crossing_ang_res": 1,
@@ -34,15 +36,17 @@ class PrettyGD:
     self.edge_li = G.get_edge_li(V, adj_V) # precompute the edge list 
 
   def train(self, N=10):
-    opt = Adam([self.W], lr=self.lr)
-    sch = ExponentialLR(opt, gamma=0.9)
+    if self.opt is None:
+      self.opt = Adam([self.W], lr=self.lr)
+    if self.sch is None:
+      self.sch = ExponentialLR(self.opt, gamma=0.9)
     self.weights = dict([(k, tt.tensor(self.weights[k])) for k in self.weights.keys()])
     for i in (t:= trange(N)):
-      opt.zero_grad()
+      self.opt.zero_grad()
       loss = self.graph_loss()
       loss.backward()
-      opt.step()
-      sch.step()
+      self.opt.step()
+      self.sch.step()
       self.losses.append(loss.item())
       t.set_description(f"Loss: {loss:.6f}; Progress")
 
