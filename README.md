@@ -26,7 +26,7 @@ pip3 install matplotlib plotly pyproj
 The syntax of PrettyGD is designed to be similar to libraries in _scikit-learn_. See the following example:
 
 ```python
-from prettygd import PrettyGD
+from PrettyGD import PrettyGD
 
 vert_coords = [[0,0], [1,0.5], [0,1]]
 adjacency_list = {0: [1,2], 1: [0,2], 2: [0,1]}
